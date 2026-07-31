@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Soumettre un prospect — SpinReviews</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --primary:#1B4FDB;--primary-h:#1439B0;
+    --amber:#F0A020;
+    --body-bg:#EFF2F8;--card:#FFFFFF;
+    --text:#0D1B35;--sub:#5C6E8A;--muted:#8A9CB4;
+    --border:#DDE3EE;
+    --radius:10px;--radius-lg:16px;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{--body-bg:#0B1120;--card:#1A2540;--text:#E8EDF5;--sub:#8A9EC0;--muted:#5C6E8A;--border:#263350}
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--body-bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem 1rem}
+
+  .card{width:100%;max-width:560px;background:var(--card);border-radius:var(--radius-lg);padding:2.5rem 2.5rem;box-shadow:0 8px 40px rgba(0,0,0,.10),0 2px 8px rgba(0,0,0,.06)}
+
+  .logo-row{display:flex;align-items:center;gap:10px;margin-bottom:2rem}
+  .logo-mark{width:34px;height:34px;background:var(--amber);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .logo-mark svg{width:18px;height:18px}
+  .logo-name{font-size:15px;font-weight:600;color:var(--text);letter-spacing:.3px}
+  .logo-sub{font-size:11px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase}
+
+  .form-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:.3rem;letter-spacing:-.3px}
+  .form-subtitle{font-size:13.5px;color:var(--sub);margin-bottom:2rem;line-height:1.5}
+
+  .section-label{font-size:11px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);margin:1.5rem 0 .75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+  .section-label:first-of-type{margin-top:0}
+
+  .field{margin-bottom:.9rem}
+  .field label{display:block;font-size:13px;font-weight:500;color:var(--sub);margin-bottom:.3rem}
+  .field label .req{color:var(--primary);margin-left:2px}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+
+  input,select,textarea{
+    width:100%;padding:9px 12px;font-size:14px;color:var(--text);
+    background:var(--body-bg);border:1.5px solid var(--border);border-radius:var(--radius);
+    font-family:inherit;transition:border-color .15s,box-shadow .15s;outline:none;
+    -webkit-appearance:none;appearance:none
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(27,79,219,.12)}
+  input::placeholder,textarea::placeholder{color:var(--muted)}
+  textarea{resize:vertical;min-height:72px;line-height:1.5}
+  select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238A9CB4' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+
+  .submit-btn{
+    width:100%;padding:12px;font-size:15px;font-weight:600;
+    background:var(--primary);color:#fff;border:none;border-radius:var(--radius);
+    cursor:pointer;transition:background .15s,transform .1s;margin-top:1.25rem;
+    font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px
+  }
+  .submit-btn:hover{background:var(--primary-h)}
+  .submit-btn:active{transform:scale(.99)}
+  .submit-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .status-err{display:none;margin-top:1rem;padding:11px 14px;border-radius:var(--radius);font-size:13.5px;line-height:1.5;background:#FCECEA;color:#A0251C;border:1px solid #F4B8B4}
+  .status-err.show{display:block}
+  @media(prefers-color-scheme:dark){.status-err{background:#2A1210;color:#F48680;border-color:#5A2220}}
+
+  /* STEP 2 */
+  #step2{display:none;text-align:center}
+  .check-circle{width:60px;height:60px;border-radius:50%;background:#E8F5EE;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:28px}
+  @media(prefers-color-scheme:dark){.check-circle{background:#0D2E1F}}
+  .s2-title{font-size:20px;font-weight:700;margin-bottom:.4rem;letter-spacing:-.3px}
+  .s2-sub{font-size:14px;color:var(--sub);line-height:1.65;margin-bottom:2rem}
+  .s2-sub strong{color:var(--text)}
+
+  .cal-block{background:var(--body-bg);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;text-align:left;margin-bottom:1.5rem}
+  .cal-head{display:flex;align-items:center;gap:10px;margin-bottom:.65rem}
+  .cal-icon{width:34px;height:34px;background:#4285F4;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .cal-icon svg{width:18px;height:18px}
+  .cal-label{font-size:14.5px;font-weight:600;color:var(--text)}
+  .cal-meta{font-size:12px;color:var(--sub)}
+  .cal-desc{font-size:13px;color:var(--sub);line-height:1.55;margin-bottom:1rem}
+  .cal-btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;padding:11px;font-size:14.5px;font-weight:600;
+    background:#4285F4;color:#fff;border:none;border-radius:var(--radius);
+    cursor:pointer;text-decoration:none;font-family:inherit;transition:background .15s
+  }
+  .cal-btn:hover{background:#2F6FD4}
+
+  .again-btn{margin-top:1rem;font-size:13px;color:var(--sub);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px;padding:0}
+  .again-btn:hover{color:var(--text)}
+
+  @media(max-width:500px){
+    .card{padding:1.75rem 1.25rem}
+    .row-2{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="card" role="main">
+
+  <div class="logo-row">
+    <div class="logo-mark" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 2L13 8H17L14 12L15.5 18L10 15L4.5 18L6 12L3 8H7L10 2Z" fill="#0B1A30" stroke="#0B1A30" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-name">SpinReviews</div>
+      <div class="logo-sub">Programme Partenaire</div>
+    </div>
+  </div>
+
+  <!-- ÉTAPE 1 -->
+  <div id="step1">
+    <div class="form-title">Nouveau prospect</div>
+    <p class="form-subtitle">Renseignez les infos de l'établissement — on s'occupe du reste. Tous les champs * sont obligatoires.</p>
+
+    <form id="leadForm" novalidate>
+
+      <div class="section-label">Vos coordonnées</div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="apporteurPrenom">Prénom <span class="req">*</span></label>
+          <input type="text" id="apporteurPrenom" placeholder="Jean" required autocomplete="given-name">
+        </div>
+        <div class="field">
+          <label for="apporteurNom">Nom <span class="req">*</span></label>
+          <input type="text" id="apporteurNom" placeholder="Dupont" required autocomplete="family-name">
+        </div>
+      </div>
+      <div class="field">
+        <label for="apporteurTel">Téléphone <span class="req">*</span></label>
+        <input type="tel" id="apporteurTel" placeholder="06 12 34 56 78" required autocomplete="tel">
+      </div>
+      <div class="field">
+        <label for="commercial">Commercial assigné <span class="req">*</span></label>
+        <input type="text" id="commercial" placeholder="Prénom du commercial" required>
+      </div>
+
+      <div class="section-label">L'établissement</div>
+
+      <div class="field">
+        <label for="nomEtab">Nom de l'établissement <span class="req">*</span></label>
+        <input type="text" id="nomEtab" placeholder="Le Café du Capitole" required>
+      </div>
+      <div class="field">
+        <label for="typeEtab">Type d'établissement <span class="req">*</span></label>
+        <select id="typeEtab" required>
+          <option value="" disabled selected>Choisir…</option>
+          <option>Restaurant</option>
+          <option>Bar / PMU</option>
+          <option>Brasserie</option>
+          <option>Hôtel</option>
+          <option>Café</option>
+          <option>Fast-food</option>
+          <option>Épicerie / Superette</option>
+          <option>Autre</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="adresse">Adresse (n° et rue) <span class="req">*</span></label>
+        <input type="text" id="adresse" placeholder="12 rue de la Paix" required>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label for="codePostal">Code postal <span class="req">*</span></label>
+          <input type="text" id="codePostal" placeholder="31000" required maxlength="5" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="ville">Ville <span class="req">*</span></label>
+          <input type="text" id="ville" placeholder="Toulouse" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="note">Commentaire (facultatif)</label>
+        <textarea id="note" placeholder="Connaissez-vous le gérant ? Avez-vous déjà évoqué SpinReviews ?"></textarea>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">
+        <span class="spinner" id="spinner" aria-hidden="true"></span>
+        <span id="btnText">Enregistrer et choisir un créneau →</span>
+      </button>
+
+      <div class="status-err" id="statusErr" role="alert">
+        <div id="errMsg"></div>
+      </div>
+    </form>
+  </div>
+
+  <!-- ÉTAPE 2 -->
+  <div id="step2" aria-live="polite">
+    <div class="check-circle" aria-hidden="true">✓</div>
+    <div class="s2-title">Prospect enregistré !</div>
+    <p class="s2-sub"><strong id="s2etab"></strong> a bien été ajouté au CRM.<br>Plus qu'à réserver un créneau de présentation.</p>
+
+    <div class="cal-block">
+      <div class="cal-head">
+        <div class="cal-icon" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="4" width="14" height="13" rx="2" stroke="white" stroke-width="1.5"/>
+            <path d="M3 8h14" stroke="white" stroke-width="1.5"/>
+            <path d="M7 2v3M13 2v3" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="6" y="11" width="3" height="3" rx=".5" fill="white"/>
+          </svg>
+        </div>
+        <div>
+          <div class="cal-label">Réserver un RDV de présentation</div>
+          <div class="cal-meta">30 min · Visio ou en présentiel</div>
+        </div>
+      </div>
+      <p class="cal-desc">Choisissez un créneau dans notre agenda. La confirmation et le lien de visio vous seront envoyés automatiquement.</p>
+      <a href="https://calendar.app.google/5ofK3akzPpXQ6LjW6" target="_blank" rel="noopener" class="cal-btn">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="14" height="13" rx="2" stroke="white" stroke-width="1.5"/>
+          <path d="M3 8h14" stroke="white" stroke-width="1.5"/>
+          <path d="M7 2v3M13 2v3" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Voir les disponibilités
+      </a>
+    </div>
+
+    <button class="again-btn" id="againBtn" type="button">Soumettre un autre prospect</button>
+  </div>
+
+</div>
+
+<script>
+const API_URL = 'https://twenty-production-6ef9.up.railway.app/graphql';
+const API_KEY = 'eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjMyZDg3YjdmLTJmMjEtNDY3Ny04YjgxLTZlMDRkODc3M2EwMiJ9.eyJzdWIiOiI1NTNiMGU5Yy1iNjQ0LTRlNDQtYWZiMC01YjE0MGViNjBlYmYiLCJ0eXBlIjoiQVBJX0tFWSIsIndvcmtzcGFjZUlkIjoiNTUzYjBlOWMtYjY0NC00ZTQ0LWFmYjAtNWIxNDBlYjYwZWJmIiwiaWF0IjoxNzg0OTg1NTE3LCJleHAiOjQ5Mzg1ODU1MTYsImp0aSI6IjIwYzcyMDZhLTQwNjctNGM4My1iZTA3LWE5OGY2ZjJmYzNhMyJ9.-ieDEM38FXih3Z3xsTH-g58kV-EdCM7mwXGiMxPufhvIB8DXzg5eAC4qVqas-b24n9zT9WeHvHbimfVf8AvLsg';
+
+async function gql(query, variables) {
+  const r = await fetch(API_URL, {method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY},body:JSON.stringify({query,variables})});
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  const j = await r.json();
+  if (j.errors) throw new Error(j.errors[0].message);
+  return j.data;
+}
+
+document.getElementById('leadForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const v = {
+    apporteurPrenom: document.getElementById('apporteurPrenom').value.trim(),
+    apporteurNom:    document.getElementById('apporteurNom').value.trim(),
+    apporteurTel:    document.getElementById('apporteurTel').value.trim(),
+    commercial:      document.getElementById('commercial').value.trim(),
+    nomEtab:         document.getElementById('nomEtab').value.trim(),
+    typeEtab:        document.getElementById('typeEtab').value,
+    adresse:         document.getElementById('adresse').value.trim(),
+    codePostal:      document.getElementById('codePostal').value.trim(),
+    ville:           document.getElementById('ville').value.trim(),
+    note:            document.getElementById('note').value.trim()
+  };
+  const labels = {apporteurPrenom:'Prénom',apporteurNom:'Nom',apporteurTel:'Téléphone',commercial:'Commercial',nomEtab:"Nom de l'établissement",typeEtab:"Type",adresse:'Adresse',codePostal:'Code postal',ville:'Ville'};
+  const missing = ['apporteurPrenom','apporteurNom','apporteurTel','commercial','nomEtab','typeEtab','adresse','codePostal','ville'].filter(k=>!v[k]);
+  if (missing.length) { showErr('Merci de renseigner : '+missing.map(k=>labels[k]).join(', ')+'.'); return; }
+
+  const btn=document.getElementById('submitBtn'), sp=document.getElementById('spinner'), bt=document.getElementById('btnText');
+  btn.disabled=true; sp.style.display='block'; bt.textContent='Envoi en cours…';
+  document.getElementById('statusErr').classList.remove('show');
+
+  try {
+    const d = await gql(`mutation($data:CompanyCreateInput!){createCompany(data:$data){id name}}`,{
+      data:{name:v.nomEtab,address:{addressStreet1:v.adresse,addressCity:v.ville,addressPostcode:v.codePostal},typeDEtablissement:v.typeEtab}
+    });
+    const cid = d.createCompany.id;
+    const body = ['**Apporté par :** '+v.apporteurPrenom+' '+v.apporteurNom,'**Tél. apporteur :** '+v.apporteurTel,'**Commercial :** '+v.commercial,...(v.note?['\n**Commentaire :** '+v.note]:[])].join('\n');
+    try { await gql(`mutation($data:NoteCreateInput!){createNote(data:$data){id}}`,{data:{title:'Lead — '+v.apporteurPrenom+' '+v.apporteurNom,body,noteTargets:{createMany:{data:[{targetCompanyId:cid}]}}}}); } catch(_){}
+    btn.disabled=false; sp.style.display='none'; bt.textContent='Enregistrer et choisir un créneau →';
+    document.getElementById('s2etab').textContent=v.nomEtab;
+    document.getElementById('step1').style.display='none';
+    document.getElementById('step2').style.display='block';
+  } catch(err) {
+    btn.disabled=false; sp.style.display='none'; bt.textContent='Enregistrer et choisir un créneau →';
+    showErr(err instanceof TypeError ? '<strong>Erreur réseau (CORS)</strong> — ajoute <code>CORS_ALLOWED_ORIGINS=*</code> dans Railway.' : '<strong>Erreur :</strong> '+err.message);
+  }
+});
+
+document.getElementById('againBtn').addEventListener('click',function(){
+  document.getElementById('step2').style.display='none';
+  document.getElementById('step1').style.display='block';
+  document.getElementById('leadForm').reset();
+});
+
+function showErr(msg){const el=document.getElementById('statusErr');document.getElementById('errMsg').innerHTML=msg;el.classList.add('show');el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+</script>
+</body>
+</html>
