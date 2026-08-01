@@ -501,6 +501,16 @@
 const API_URL = "https://twenty-production-6ef9.up.railway.app/graphql";
 const API_KEY = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjMyZDg3YjdmLTJmMjEtNDY3Ny04YjgxLTZlMDRkODc3M2EwMiJ9.eyJzdWIiOiI1NTNiMGU5Yy1iNjQ0LTRlNDQtYWZiMC01YjE0MGViNjBlYmYiLCJ0eXBlIjoiQVBJX0tFWSIsIndvcmtzcGFjZUlkIjoiNTUzYjBlOWMtYjY0NC00ZTQ0LWFmYjAtNWIxNDBlYjYwZWJmIiwiaWF0IjoxNzg0OTg1NTE3LCJleHAiOjQ5Mzg1ODU1MTYsImp0aSI6IjIwYzcyMDZhLTQwNjctNGM4My1iZTA3LWE5OGY2ZjJmYzNhMyJ9.-ieDEM38FXih3Z3xsTH-g58kV-EdCM7mwXGiMxPufhvIB8DXzg5eAC4qVqas-b24n9zT9WeHvHbimfVf8AvLsg";
 
+// Tarifs par formule
+const FORMULE = {
+  AMBASSADEUR: { mrr: 39,    arr: 468,  setup: 0  },
+  MENSUEL:     { mrr: 59,    arr: 708,  setup: 79 },
+  ANNUEL:      { mrr: 44.90, arr: 539,  setup: 79 },
+};
+function getMRR(c) { return (FORMULE[c.formule] || { mrr: 0 }).mrr; }
+function getARR(c) { return (FORMULE[c.formule] || { arr: 0 }).arr; }
+function getSetup(c) { return (FORMULE[c.formule] || { setup: 0 }).setup; }
+
 const STATUT_LABELS = {
   LEADS: "Leads", CONTACTE: "Contacté", RDV_FIXE: "RDV Fixé",
   FOLLOW_UP: "Follow-up", SIGNE: "Signé", ACCORD_VERBAL: "Accord verbal", PERDU: "Perdu"
@@ -548,11 +558,7 @@ async function loadData() {
     companies(first: 200) {
       edges {
         node {
-          id name statutSpin createdAt dateProchaineAction
-          mrr { amountMicros currencyCode }
-          arr { amountMicros currencyCode }
-          commission { amountMicros currencyCode }
-          setupFee paiement
+          id name statutSpin formule createdAt dateProchaineAction
           accountOwner { name { firstName lastName } }
         }
       }
@@ -595,28 +601,24 @@ function renderBusiness() {
   const signes = allCompanies.filter(c => c.statutSpin === "SIGNE");
   const signesPeriod = signes.filter(c => inPeriod(c.createdAt, currentPeriod));
 
-  // MRR: sum pour tous les signés actifs (pas filtré par période — c'est un état courant)
-  let totalMRR = 0;
-  signes.forEach(c => {
-    const arrVal = euros(c.arr?.amountMicros);
-    if (arrVal > 0) totalMRR += arrVal / 12;
-  });
-
-  const totalARR = totalMRR * 12;
+  // MRR / ARR basés sur la formule souscrite (état courant de tous les signés)
+  const totalMRR = signes.reduce((s, c) => s + getMRR(c), 0);
+  const totalARR = signes.reduce((s, c) => s + getARR(c), 0);
   const mrrAvg = signes.length > 0 ? totalMRR / signes.length : 0;
   const arrAvg = signes.length > 0 ? totalARR / signes.length : 0;
 
-  const setupPaid = signesPeriod.filter(c => c.setupFee && c.setupFee !== "OFFERT").length;
-  const setupOffert = signesPeriod.filter(c => c.setupFee === "OFFERT").length;
+  // Setup fees : 79€ par client signé sur la période (hors Ambassadeur)
+  const setupRevenu = signesPeriod.reduce((s, c) => s + getSetup(c), 0);
+  const setupAmbass = signesPeriod.filter(c => c.formule === "AMBASSADEUR").length;
 
-  document.getElementById("kpi-mrr").textContent = fmt(totalMRR);
-  document.getElementById("kpi-arr").textContent = fmt(totalARR);
+  document.getElementById("kpi-mrr").textContent = fmt(totalMRR, 2);
+  document.getElementById("kpi-arr").textContent = fmt(totalARR, 2);
   document.getElementById("kpi-signes").textContent = signesPeriod.length;
   document.getElementById("kpi-signes-sub").textContent = currentPeriod === 0 ? "au total" : `sur ${currentPeriod} jours`;
-  document.getElementById("kpi-mrr-avg").textContent = fmt(mrrAvg);
-  document.getElementById("kpi-arr-avg").textContent = fmt(arrAvg);
-  document.getElementById("kpi-setup").textContent = setupPaid;
-  document.getElementById("kpi-setup-sub").textContent = `payants · ${setupOffert} offerts`;
+  document.getElementById("kpi-mrr-avg").textContent = fmt(mrrAvg, 2);
+  document.getElementById("kpi-arr-avg").textContent = fmt(arrAvg, 2);
+  document.getElementById("kpi-setup").textContent = fmt(setupRevenu, 0);
+  document.getElementById("kpi-setup-sub").textContent = `collectés · ${setupAmbass} Ambassadeur(s) exonéré(s)`;
 }
 
 function renderAccords() {
@@ -791,7 +793,7 @@ function renderCommercials() {
     map[name].leads++;
     if (c.statutSpin === "SIGNE") {
       map[name].signes++;
-      map[name].arr += euros(c.arr?.amountMicros);
+      map[name].arr += getARR(c);
     }
   });
 
@@ -803,7 +805,7 @@ function renderCommercials() {
       <td style="font-weight:500">${name}</td>
       <td>${d.leads}</td>
       <td style="color:var(--positive)">${d.signes}</td>
-      <td>${fmt(d.arr)}</td>
+      <td>${fmt(d.arr, 0)}</td>
     </tr>
   `).join("");
 }
