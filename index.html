@@ -265,7 +265,7 @@ document.getElementById('leadForm').addEventListener('submit', async function(e)
 
   try {
     const d = await gql(`mutation($data:CompanyCreateInput!){createCompany(data:$data){id name}}`,{
-      data:{name:v.nomEtab,address:{addressStreet1:v.adresse,addressCity:v.ville,addressPostcode:v.codePostal},typeDEtablissement:v.typeEtab,statutSpin:"LEADS"}
+      data:{name:v.nomEtab,address:{addressStreet1:v.adresse,addressCity:v.ville,addressPostcode:v.codePostal},typeDEtablissement:v.typeEtab,statutSpin:"LEADS",origineProspect:"APPORTEUR"}
     });
     const cid = d.createCompany.id;
     const body = ['**Apporté par :** '+v.apporteurPrenom+' '+v.apporteurNom,'**Tél. apporteur :** '+v.apporteurTel,'**Commercial :** '+v.commercial,...(v.note?['\n**Commentaire :** '+v.note]:[])].join('\n');
@@ -290,3 +290,4 @@ function showErr(msg){const el=document.getElementById('statusErr');document.get
 </script>
 </body>
 </html>
+
