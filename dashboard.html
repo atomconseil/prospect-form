@@ -541,26 +541,48 @@
     </div>
   </div>
 
-  <!-- RDV + Commerciaux -->
-  <div class="section-title">Agenda & Équipe</div>
-  <div class="two-col">
-    <div class="panel">
-      <div class="panel-title">Prochains RDV</div>
-      <div class="rdv-list" id="rdvList"><div class="empty">Aucun RDV à venir</div></div>
+  <!-- RDV -->
+  <div class="section-title">Agenda</div>
+  <div class="panel" style="margin-bottom:12px">
+    <div class="panel-title">Prochains RDV</div>
+    <div class="rdv-list" id="rdvList"><div class="empty">Aucun RDV à venir</div></div>
+  </div>
+
+  <!-- Closers -->
+  <div class="section-title">Closers — Performance commerciale</div>
+  <div class="panel" style="margin-bottom:12px">
+    <div class="panel-title">Activité par closer <span style="color:var(--text-3);font-weight:400" id="closerPeriodLabel"></span></div>
+    <div style="overflow-x:auto">
+      <table class="com-table">
+        <thead><tr>
+          <th>Closer</th>
+          <th>Leads</th>
+          <th>RDV fixés</th>
+          <th>Signés</th>
+          <th>Taux RDV→signé</th>
+          <th>ARR généré</th>
+        </tr></thead>
+        <tbody id="closerTable"><tr><td colspan="6" class="empty">—</td></tr></tbody>
+      </table>
     </div>
-    <div class="panel">
-      <div class="panel-title">Activité par commercial</div>
-      <div style="overflow-x:auto">
-        <table class="com-table">
-          <thead><tr>
-            <th>Commercial</th>
-            <th>Leads</th>
-            <th>Signés</th>
-            <th>ARR</th>
-          </tr></thead>
-          <tbody id="comTable"><tr><td colspan="4" class="empty">—</td></tr></tbody>
-        </table>
-      </div>
+  </div>
+
+  <!-- Apporteurs -->
+  <div class="section-title">Apporteurs d'affaire — Leads & Commissions</div>
+  <div class="panel" style="margin-bottom:12px">
+    <div class="panel-title">Activité par apporteur <span style="color:var(--text-3);font-weight:400" id="apporteurPeriodLabel"></span></div>
+    <div style="overflow-x:auto">
+      <table class="com-table">
+        <thead><tr>
+          <th>Apporteur</th>
+          <th>Leads amenés</th>
+          <th>RDV honorés</th>
+          <th>Signés</th>
+          <th>Taux conversion</th>
+          <th>Commission due</th>
+        </tr></thead>
+        <tbody id="apporteurTable"><tr><td colspan="6" class="empty">—</td></tr></tbody>
+      </table>
     </div>
   </div>
 
@@ -700,7 +722,8 @@ function render() {
   renderSources();
   renderCommissions();
   renderRDV();
-  renderCommercials();
+  renderClosers();
+  renderApporteurs();
   renderReglements();
 }
 
@@ -940,31 +963,72 @@ function renderRDV() {
   }).join("");
 }
 
-function renderCommercials() {
+function renderClosers() {
+  const periodLabel = currentPeriod === 0 ? "— tout" : `— ${currentPeriod} j`;
+  document.getElementById("closerPeriodLabel").textContent = periodLabel;
+
+  const filtered = allCompanies.filter(c => inPeriod(c.createdAt, currentPeriod));
   const map = {};
-  allCompanies.forEach(c => {
+  filtered.forEach(c => {
     const name = c.accountOwner
       ? (c.accountOwner.name.firstName + " " + c.accountOwner.name.lastName).trim()
       : "Non assigné";
-    if (!map[name]) map[name] = { leads: 0, signes: 0, arr: 0 };
+    if (!map[name]) map[name] = { leads: 0, rdv: 0, signes: 0, arr: 0 };
     map[name].leads++;
-    if (c.statutSpin === "SIGNE") {
-      map[name].signes++;
-      map[name].arr += getARR(c);
-    }
+    if (["RDV_FIXE","FOLLOW_UP","ACCORD_VERBAL","SIGNE"].includes(c.statutSpin)) map[name].rdv++;
+    if (c.statutSpin === "SIGNE") { map[name].signes++; map[name].arr += getARR(c); }
   });
 
   const rows = Object.entries(map).sort((a, b) => b[1].signes - a[1].signes);
-  const tbody = document.getElementById("comTable");
-  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty">—</td></tr>'; return; }
-  tbody.innerHTML = rows.map(([name, d]) => `
-    <tr>
+  const tbody = document.getElementById("closerTable");
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">—</td></tr>'; return; }
+  tbody.innerHTML = rows.map(([name, d]) => {
+    const taux = d.rdv > 0 ? Math.round(d.signes / d.rdv * 100) : 0;
+    const tauxColor = taux >= 50 ? "var(--positive)" : taux >= 25 ? "var(--warning)" : "var(--danger)";
+    return `<tr>
       <td style="font-weight:500">${name}</td>
       <td>${d.leads}</td>
-      <td style="color:var(--positive)">${d.signes}</td>
+      <td>${d.rdv}</td>
+      <td style="color:var(--positive);font-weight:600">${d.signes}</td>
+      <td style="color:${tauxColor};font-weight:600">${taux}%</td>
       <td>${fmt(d.arr, 0)}</td>
-    </tr>
-  `).join("");
+    </tr>`;
+  }).join("");
+}
+
+function renderApporteurs() {
+  const periodLabel = currentPeriod === 0 ? "— tout" : `— ${currentPeriod} j`;
+  document.getElementById("apporteurPeriodLabel").textContent = periodLabel;
+
+  const filtered = allCompanies.filter(c =>
+    c.nomApporteur && c.nomApporteur.trim() !== "" && inPeriod(c.createdAt, currentPeriod)
+  );
+  const map = {};
+  filtered.forEach(c => {
+    const nom = c.nomApporteur.trim();
+    if (!map[nom]) map[nom] = { leads: 0, rdvHonores: 0, signes: 0 };
+    map[nom].leads++;
+    // RDV honoré = le statut a dépassé RDV_FIXE (pas perdu, pas no show, pas juste lead/contacté)
+    if (["FOLLOW_UP","ACCORD_VERBAL","SIGNE"].includes(c.statutSpin)) map[nom].rdvHonores++;
+    if (c.statutSpin === "SIGNE") map[nom].signes++;
+  });
+
+  const rows = Object.entries(map).sort((a, b) => b[1].signes - a[1].signes);
+  const tbody = document.getElementById("apporteurTable");
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Aucun apporteur sur la période</td></tr>'; return; }
+  tbody.innerHTML = rows.map(([nom, d]) => {
+    const taux = d.leads > 0 ? Math.round(d.signes / d.leads * 100) : 0;
+    const tauxColor = taux >= 30 ? "var(--positive)" : taux >= 15 ? "var(--warning)" : "var(--text-2)";
+    const commission = d.signes * COMMISSION_PAR_RDV;
+    return `<tr>
+      <td style="font-weight:500">${nom}</td>
+      <td>${d.leads}</td>
+      <td>${d.rdvHonores}</td>
+      <td style="color:var(--positive);font-weight:600">${d.signes}</td>
+      <td style="color:${tauxColor};font-weight:600">${taux}%</td>
+      <td style="color:var(--warning);font-weight:600">${fmt(commission, 0)}</td>
+    </tr>`;
+  }).join("");
 }
 
 function renderSources() {
