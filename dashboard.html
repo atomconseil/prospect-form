@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpinReviews — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0A0F1C;
+    --surface: #111827;
+    --surface-2: #1A2235;
+    --border: #1E2A3A;
+    --border-2: #2D3F55;
+    --text: #E8EDF5;
+    --text-2: #7A8FA6;
+    --text-3: #4A6080;
+    --accent: #00C9A7;
+    --accent-dim: rgba(0,201,167,.12);
+    --positive: #10B981;
+    --positive-dim: rgba(16,185,129,.12);
+    --warning: #F59E0B;
+    --warning-dim: rgba(245,158,11,.12);
+    --danger: #EF4444;
+    --danger-dim: rgba(239,68,68,.12);
+    --purple: #8B5CF6;
+    --purple-dim: rgba(139,92,246,.12);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #F0F4F8;
+      --surface: #FFFFFF;
+      --surface-2: #F7FAFC;
+      --border: #E2E8F0;
+      --border-2: #CBD5E0;
+      --text: #1A202C;
+      --text-2: #4A5568;
+      --text-3: #A0AEC0;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F0F4F8;
+    --surface: #FFFFFF;
+    --surface-2: #F7FAFC;
+    --border: #E2E8F0;
+    --border-2: #CBD5E0;
+    --text: #1A202C;
+    --text-2: #4A5568;
+    --text-3: #A0AEC0;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -.3px;
+  }
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .last-updated {
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .btn-refresh {
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    color: var(--text-2);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-refresh.spinning svg { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Layout ── */
+  .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── Period selector ── */
+  .period-bar {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    width: fit-content;
+    margin-bottom: 24px;
+  }
+  .period-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    padding: 5px 14px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .period-btn.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+  }
+  .period-btn:hover:not(.active) { background: var(--surface-2); color: var(--text); }
+
+  /* ── Section title ── */
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 12px;
+    margin-top: 28px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  /* ── KPI grid ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color .15s;
+  }
+  .kpi-card:hover { border-color: var(--border-2); }
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text-3);
+    font-weight: 500;
+    letter-spacing: .02em;
+  }
+  .kpi-value {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.5px;
+    line-height: 1.1;
+  }
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text-3);
+  }
+  .kpi-card.accent { border-color: var(--accent); background: var(--accent-dim); }
+  .kpi-card.accent .kpi-value { color: var(--accent); }
+  .kpi-card.positive { border-color: var(--positive); background: var(--positive-dim); }
+  .kpi-card.positive .kpi-value { color: var(--positive); }
+  .kpi-card.warning { border-color: var(--warning); background: var(--warning-dim); }
+  .kpi-card.warning .kpi-value { color: var(--warning); }
+  .kpi-card.purple { border-color: var(--purple); background: var(--purple-dim); }
+  .kpi-card.purple .kpi-value { color: var(--purple); }
+
+  /* ── Two-col layout ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+
+  .three-col {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 960px) { .three-col { grid-template-columns: 1fr; } }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+    margin-bottom: 14px;
+  }
+
+  /* ── Accords verbaux ── */
+  .accord-list { display: flex; flex-direction: column; gap: 6px; }
+  .accord-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--surface-2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .accord-name { font-weight: 500; }
+  .accord-badge {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--warning-dim);
+    color: var(--warning);
+    border: 1px solid var(--warning);
+  }
+
+  /* ── Pipeline bar ── */
+  .pipeline-bars { display: flex; flex-direction: column; gap: 8px; }
+  .pipe-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 36px;
+    align-items: center;
+    gap: 8px;
+  }
+  .pipe-label { font-size: 11px; color: var(--text-2); font-weight: 500; }
+  .pipe-track {
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .pipe-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+  }
+  .pipe-count { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; color: var(--text-2); }
+
+  /* ── Prochains RDV ── */
+  .rdv-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 320px; }
+  .rdv-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .rdv-date-block {
+    text-align: center;
+    min-width: 38px;
+    flex-shrink: 0;
+  }
+  .rdv-day { font-size: 20px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .rdv-month { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+  .rdv-info { flex: 1; min-width: 0; }
+  .rdv-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rdv-time { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+  .statut-pill {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  /* ── Conversion funnel ── */
+  .funnel { display: flex; flex-direction: column; gap: 6px; }
+  .funnel-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .funnel-bar-wrap { flex: 1; display: flex; align-items: center; gap: 6px; }
+  .funnel-bar-track { flex: 1; height: 28px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+  .funnel-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #000;
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+    min-width: 28px;
+  }
+  .funnel-label { font-size: 11px; color: var(--text-2); min-width: 100px; }
+  .funnel-pct { font-size: 11px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+
+  /* ── Leads chart container ── */
+  .chart-wrap { position: relative; height: 180px; }
+
+  /* ── Commercial table ── */
+  .com-table { width: 100%; border-collapse: collapse; }
+  .com-table th {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    padding: 0 0 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .com-table th:not(:first-child) { text-align: right; }
+  .com-table td {
+    padding: 8px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .com-table td:not(:first-child) { text-align: right; color: var(--text-2); }
+  .com-table tr:last-child td { border-bottom: none; }
+
+  /* ── Loading state ── */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 200;
+  }
+  .loader {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  .loading-text { font-size: 13px; color: var(--text-3); }
+
+  /* ── Empty state ── */
+  .empty { color: var(--text-3); font-size: 12px; padding: 12px 0; text-align: center; }
+
+  /* ── Error banner ── */
+  .error-banner {
+    background: var(--danger-dim);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--danger);
+    margin-bottom: 16px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader"></div>
+  <div class="loading-text">Chargement des données…</div>
+</div>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    SpinReviews <span style="color:var(--text-3);font-weight:400;margin-left:4px">/ Dashboard</span>
+  </div>
+  <div class="header-right">
+    <span class="last-updated" id="lastUpdated">—</span>
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+      </svg>
+      Actualiser
+    </button>
+  </div>
+</header>
+
+<main class="main">
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- Period -->
+  <div class="period-bar">
+    <button class="period-btn" data-period="7" onclick="setPeriod(this)">7 j</button>
+    <button class="period-btn active" data-period="30" onclick="setPeriod(this)">30 j</button>
+    <button class="period-btn" data-period="90" onclick="setPeriod(this)">3 mois</button>
+    <button class="period-btn" data-period="180" onclick="setPeriod(this)">6 mois</button>
+    <button class="period-btn" data-period="365" onclick="setPeriod(this)">Année</button>
+    <button class="period-btn" data-period="0" onclick="setPeriod(this)">Tout</button>
+  </div>
+
+  <!-- Business -->
+  <div class="section-title">Business</div>
+  <div class="kpi-grid" id="businessKpis">
+    <div class="kpi-card accent"><div class="kpi-label">MRR</div><div class="kpi-value" id="kpi-mrr">—</div><div class="kpi-sub">Revenu mensuel récurrent</div></div>
+    <div class="kpi-card"><div class="kpi-label">ARR Projeté</div><div class="kpi-value" id="kpi-arr">—</div><div class="kpi-sub">MRR × 12</div></div>
+    <div class="kpi-card positive"><div class="kpi-label">Clients Signés</div><div class="kpi-value" id="kpi-signes">—</div><div class="kpi-sub" id="kpi-signes-sub">sur la période</div></div>
+    <div class="kpi-card"><div class="kpi-label">MRR Moyen / client</div><div class="kpi-value" id="kpi-mrr-avg">—</div><div class="kpi-sub">Clients actifs</div></div>
+    <div class="kpi-card"><div class="kpi-label">ARR Moyen / client</div><div class="kpi-value" id="kpi-arr-avg">—</div><div class="kpi-sub">Clients actifs</div></div>
+    <div class="kpi-card warning"><div class="kpi-label">Setup Fees</div><div class="kpi-value" id="kpi-setup">—</div><div class="kpi-sub" id="kpi-setup-sub">payants sur la période</div></div>
+  </div>
+
+  <!-- Accords verbaux -->
+  <div class="section-title">Accords Verbaux en Attente</div>
+  <div class="panel" id="accordsPanel">
+    <div class="panel-title" id="accordsTitle">— établissements</div>
+    <div class="accord-list" id="accordsList"><div class="empty">Aucun accord verbal en cours</div></div>
+  </div>
+
+  <!-- Acquisition + Pipeline -->
+  <div class="section-title">Acquisition & Pipeline</div>
+  <div class="three-col">
+    <div class="panel">
+      <div class="panel-title">Nouveaux Leads</div>
+      <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px">
+        <div><div class="kpi-label">Aujourd'hui</div><div class="kpi-value" style="font-size:22px" id="leads-today">—</div></div>
+        <div><div class="kpi-label">Cette semaine</div><div class="kpi-value" style="font-size:22px" id="leads-week">—</div></div>
+        <div><div class="kpi-label">Ce mois</div><div class="kpi-value" style="font-size:22px" id="leads-month">—</div></div>
+      </div>
+      <div class="chart-wrap"><canvas id="leadsChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Pipeline par statut</div>
+      <div class="pipeline-bars" id="pipelineBars"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Entonnoir de conversion</div>
+      <div class="funnel" id="funnelBars"></div>
+    </div>
+  </div>
+
+  <!-- RDV + Commerciaux -->
+  <div class="section-title">Agenda & Équipe</div>
+  <div class="two-col">
+    <div class="panel">
+      <div class="panel-title">Prochains RDV</div>
+      <div class="rdv-list" id="rdvList"><div class="empty">Aucun RDV à venir</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Activité par commercial</div>
+      <div style="overflow-x:auto">
+        <table class="com-table">
+          <thead><tr>
+            <th>Commercial</th>
+            <th>Leads</th>
+            <th>Signés</th>
+            <th>ARR</th>
+          </tr></thead>
+          <tbody id="comTable"><tr><td colspan="4" class="empty">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const API_URL = "https://twenty-production-6ef9.up.railway.app/graphql";
+const API_KEY = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjMyZDg3YjdmLTJmMjEtNDY3Ny04YjgxLTZlMDRkODc3M2EwMiJ9.eyJzdWIiOiI1NTNiMGU5Yy1iNjQ0LTRlNDQtYWZiMC01YjE0MGViNjBlYmYiLCJ0eXBlIjoiQVBJX0tFWSIsIndvcmtzcGFjZUlkIjoiNTUzYjBlOWMtYjY0NC00ZTQ0LWFmYjAtNWIxNDBlYjYwZWJmIiwiaWF0IjoxNzg0OTg1NTE3LCJleHAiOjQ5Mzg1ODU1MTYsImp0aSI6IjIwYzcyMDZhLTQwNjctNGM4My1iZTA3LWE5OGY2ZjJmYzNhMyJ9.-ieDEM38FXih3Z3xsTH-g58kV-EdCM7mwXGiMxPufhvIB8DXzg5eAC4qVqas-b24n9zT9WeHvHbimfVf8AvLsg";
+
+const STATUT_LABELS = {
+  LEADS: "Leads", CONTACTE: "Contacté", RDV_FIXE: "RDV Fixé",
+  FOLLOW_UP: "Follow-up", SIGNE: "Signé", ACCORD_VERBAL: "Accord verbal", PERDU: "Perdu"
+};
+const STATUT_COLORS = {
+  LEADS: "#3B82F6", CONTACTE: "#8B5CF6", RDV_FIXE: "#00C9A7",
+  FOLLOW_UP: "#F59E0B", SIGNE: "#10B981", ACCORD_VERBAL: "#F97316", PERDU: "#EF4444"
+};
+const STATUT_ORDER = ["LEADS","CONTACTE","RDV_FIXE","FOLLOW_UP","ACCORD_VERBAL","SIGNE","PERDU"];
+const MONTHS = ["jan","fév","mar","avr","mai","jun","jul","aoû","sep","oct","nov","déc"];
+
+let allCompanies = [];
+let currentPeriod = 30;
+let leadsChartInstance = null;
+
+function euros(amountMicros) {
+  if (!amountMicros) return 0;
+  return amountMicros / 1_000_000;
+}
+
+function fmt(n, decimals = 0) {
+  if (n === null || n === undefined) return "—";
+  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(n);
+}
+
+function inPeriod(dateStr, days) {
+  if (days === 0) return true;
+  const d = new Date(dateStr);
+  const cutoff = new Date(Date.now() - days * 86400000);
+  return d >= cutoff;
+}
+
+function setPeriod(btn) {
+  document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  currentPeriod = parseInt(btn.dataset.period);
+  render();
+}
+
+async function loadData() {
+  const btn = document.getElementById("btnRefresh");
+  btn.classList.add("spinning");
+
+  const query = `{
+    companies(first: 200) {
+      edges {
+        node {
+          id name statutSpin createdAt dateProchaineAction
+          mrr { amountMicros currencyCode }
+          arr { amountMicros currencyCode }
+          commission { amountMicros currencyCode }
+          setupFee paiement
+          accountOwner { name { firstName lastName } }
+        }
+      }
+    }
+  }`;
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ query })
+    });
+    const json = await res.json();
+    if (json.errors) throw new Error(json.errors[0].message);
+    allCompanies = json.data.companies.edges.map(e => e.node);
+    document.getElementById("errorBanner").style.display = "none";
+    document.getElementById("lastUpdated").textContent = "Mis à jour " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    render();
+  } catch (err) {
+    const eb = document.getElementById("errorBanner");
+    eb.style.display = "block";
+    eb.textContent = "Erreur de chargement : " + err.message;
+  } finally {
+    btn.classList.remove("spinning");
+    document.getElementById("loadingOverlay").style.display = "none";
+  }
+}
+
+function render() {
+  renderBusiness();
+  renderAccords();
+  renderLeads();
+  renderPipeline();
+  renderFunnel();
+  renderRDV();
+  renderCommercials();
+}
+
+function renderBusiness() {
+  const signes = allCompanies.filter(c => c.statutSpin === "SIGNE");
+  const signesPeriod = signes.filter(c => inPeriod(c.createdAt, currentPeriod));
+
+  // MRR: sum pour tous les signés actifs (pas filtré par période — c'est un état courant)
+  let totalMRR = 0;
+  signes.forEach(c => {
+    const arrVal = euros(c.arr?.amountMicros);
+    if (arrVal > 0) totalMRR += arrVal / 12;
+  });
+
+  const totalARR = totalMRR * 12;
+  const mrrAvg = signes.length > 0 ? totalMRR / signes.length : 0;
+  const arrAvg = signes.length > 0 ? totalARR / signes.length : 0;
+
+  const setupPaid = signesPeriod.filter(c => c.setupFee && c.setupFee !== "OFFERT").length;
+  const setupOffert = signesPeriod.filter(c => c.setupFee === "OFFERT").length;
+
+  document.getElementById("kpi-mrr").textContent = fmt(totalMRR);
+  document.getElementById("kpi-arr").textContent = fmt(totalARR);
+  document.getElementById("kpi-signes").textContent = signesPeriod.length;
+  document.getElementById("kpi-signes-sub").textContent = currentPeriod === 0 ? "au total" : `sur ${currentPeriod} jours`;
+  document.getElementById("kpi-mrr-avg").textContent = fmt(mrrAvg);
+  document.getElementById("kpi-arr-avg").textContent = fmt(arrAvg);
+  document.getElementById("kpi-setup").textContent = setupPaid;
+  document.getElementById("kpi-setup-sub").textContent = `payants · ${setupOffert} offerts`;
+}
+
+function renderAccords() {
+  const accords = allCompanies.filter(c => c.statutSpin === "ACCORD_VERBAL");
+  document.getElementById("accordsTitle").textContent = accords.length + " établissement" + (accords.length !== 1 ? "s" : "");
+  const list = document.getElementById("accordsList");
+  if (accords.length === 0) {
+    list.innerHTML = '<div class="empty">Aucun accord verbal en cours</div>';
+    return;
+  }
+  list.innerHTML = accords.map(c => `
+    <div class="accord-item">
+      <span class="accord-name">${c.name}</span>
+      <span class="accord-badge">EN ATTENTE</span>
+    </div>
+  `).join("");
+}
+
+function renderLeads() {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfToday); startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const leads = allCompanies.filter(c => c.statutSpin === "LEADS");
+  document.getElementById("leads-today").textContent = leads.filter(c => new Date(c.createdAt) >= startOfToday).length;
+  document.getElementById("leads-week").textContent = leads.filter(c => new Date(c.createdAt) >= startOfWeek).length;
+  document.getElementById("leads-month").textContent = leads.filter(c => new Date(c.createdAt) >= startOfMonth).length;
+
+  // Leads par semaine sur les 8 dernières semaines
+  const labels = [];
+  const data = [];
+  for (let i = 7; i >= 0; i--) {
+    const wStart = new Date(now.getTime() - (i + 1) * 7 * 86400000);
+    const wEnd = new Date(now.getTime() - i * 7 * 86400000);
+    const count = allCompanies.filter(c => {
+      const d = new Date(c.createdAt);
+      return d >= wStart && d < wEnd;
+    }).length;
+    labels.push(`S-${i}`);
+    data.push(count);
+  }
+  labels[labels.length - 1] = "Cette sem.";
+
+  if (leadsChartInstance) leadsChartInstance.destroy();
+  const ctx = document.getElementById("leadsChart").getContext("2d");
+  leadsChartInstance = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: "rgba(0,201,167,.25)",
+        borderColor: "#00C9A7",
+        borderWidth: 1.5,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: "#4A6080", font: { size: 10 } } },
+        y: { grid: { color: "rgba(255,255,255,.04)" }, ticks: { color: "#4A6080", font: { size: 10 }, stepSize: 1 }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function renderPipeline() {
+  const counts = {};
+  STATUT_ORDER.forEach(s => counts[s] = 0);
+  allCompanies.forEach(c => { if (counts[c.statutSpin] !== undefined) counts[c.statutSpin]++; });
+  const max = Math.max(...Object.values(counts), 1);
+
+  const el = document.getElementById("pipelineBars");
+  el.innerHTML = STATUT_ORDER.map(s => `
+    <div class="pipe-row">
+      <div class="pipe-label">${STATUT_LABELS[s]}</div>
+      <div class="pipe-track">
+        <div class="pipe-fill" style="width:${(counts[s]/max*100).toFixed(1)}%;background:${STATUT_COLORS[s]}"></div>
+      </div>
+      <div class="pipe-count">${counts[s]}</div>
+    </div>
+  `).join("");
+}
+
+function renderFunnel() {
+  const total = allCompanies.filter(c => c.statutSpin !== "PERDU").length || 1;
+  const steps = [
+    { label: "Total entrants", key: null, color: "#3B82F6" },
+    { label: "Contactés", statuts: ["CONTACTE","RDV_FIXE","FOLLOW_UP","ACCORD_VERBAL","SIGNE"], color: "#8B5CF6" },
+    { label: "RDV fixés", statuts: ["RDV_FIXE","ACCORD_VERBAL","SIGNE"], color: "#00C9A7" },
+    { label: "Signés", statuts: ["SIGNE"], color: "#10B981" },
+  ];
+
+  const counts = steps.map(s => {
+    if (!s.statuts) return allCompanies.length;
+    return allCompanies.filter(c => s.statuts.includes(c.statutSpin)).length;
+  });
+
+  const el = document.getElementById("funnelBars");
+  el.innerHTML = steps.map((s, i) => {
+    const pct = counts[0] > 0 ? ((counts[i] / counts[0]) * 100).toFixed(0) : 0;
+    return `
+      <div class="funnel-step">
+        <div class="funnel-label">${s.label}</div>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar-track">
+            <div class="funnel-bar-fill" style="width:${pct}%;background:${s.color}">${counts[i]}</div>
+          </div>
+        </div>
+        <div class="funnel-pct">${pct}%</div>
+      </div>
+    `;
+  }).join("");
+
+  // Taux de perte
+  const perdus = allCompanies.filter(c => c.statutSpin === "PERDU").length;
+  const txPerte = allCompanies.length > 0 ? ((perdus / allCompanies.length) * 100).toFixed(0) : 0;
+  el.innerHTML += `
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);display:flex;justify-content:space-between">
+      <span>Taux de perte</span>
+      <span style="color:var(--danger);font-weight:600">${txPerte}% (${perdus})</span>
+    </div>
+  `;
+}
+
+function renderRDV() {
+  const now = new Date();
+  const upcoming = allCompanies
+    .filter(c => c.dateProchaineAction && new Date(c.dateProchaineAction) > now)
+    .sort((a, b) => new Date(a.dateProchaineAction) - new Date(b.dateProchaineAction))
+    .slice(0, 10);
+
+  const el = document.getElementById("rdvList");
+  if (upcoming.length === 0) {
+    el.innerHTML = '<div class="empty">Aucun RDV à venir</div>';
+    return;
+  }
+
+  el.innerHTML = upcoming.map(c => {
+    const d = new Date(c.dateProchaineAction);
+    const color = STATUT_COLORS[c.statutSpin] || "#7A8FA6";
+    const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return `
+      <div class="rdv-item">
+        <div class="rdv-date-block">
+          <div class="rdv-day" style="color:var(--accent)">${d.getDate()}</div>
+          <div class="rdv-month">${MONTHS[d.getMonth()]}</div>
+        </div>
+        <div class="rdv-info">
+          <div class="rdv-name">${c.name}</div>
+          <div class="rdv-time">${time} · ${d.getFullYear()}</div>
+        </div>
+        <div class="statut-pill" style="background:${color}22;color:${color};border:1px solid ${color}">
+          ${STATUT_LABELS[c.statutSpin] || c.statutSpin}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderCommercials() {
+  const map = {};
+  allCompanies.forEach(c => {
+    const name = c.accountOwner
+      ? (c.accountOwner.name.firstName + " " + c.accountOwner.name.lastName).trim()
+      : "Non assigné";
+    if (!map[name]) map[name] = { leads: 0, signes: 0, arr: 0 };
+    map[name].leads++;
+    if (c.statutSpin === "SIGNE") {
+      map[name].signes++;
+      map[name].arr += euros(c.arr?.amountMicros);
+    }
+  });
+
+  const rows = Object.entries(map).sort((a, b) => b[1].signes - a[1].signes);
+  const tbody = document.getElementById("comTable");
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty">—</td></tr>'; return; }
+  tbody.innerHTML = rows.map(([name, d]) => `
+    <tr>
+      <td style="font-weight:500">${name}</td>
+      <td>${d.leads}</td>
+      <td style="color:var(--positive)">${d.signes}</td>
+      <td>${fmt(d.arr)}</td>
+    </tr>
+  `).join("");
+}
+
+// Init
+loadData();
+// Auto-refresh toutes les 5 min
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
