@@ -309,8 +309,8 @@ document.getElementById('leadForm').addEventListener('submit', async function(e)
         { data: {
             name: { firstName: v.contactPrenom, lastName: v.contactNom },
             emails: { primaryEmail: v.contactEmail },
-            phones: { primaryPhoneNumber: v.contactTel, primaryPhoneCountryCode: "+33" },
-            company: { connect: { id: cid } }
+            phones: { primaryPhoneNumber: v.contactTel, primaryPhoneCallingCode: "+33" },
+            companyId: cid
         }}
       );
     } catch(e) { console.warn('Contact non créé:', e.message); }
