@@ -122,28 +122,22 @@
     <form id="leadForm" novalidate>
 
       <div class="section-label">Vos coordonnées</div>
-
       <div class="row-2">
         <div class="field">
-          <label for="apporteurPrenom">Prénom <span class="req">*</span></label>
+          <label for="apporteurPrenom">Votre prénom <span class="req">*</span></label>
           <input type="text" id="apporteurPrenom" placeholder="Jean" required autocomplete="given-name">
         </div>
         <div class="field">
-          <label for="apporteurNom">Nom <span class="req">*</span></label>
+          <label for="apporteurNom">Votre nom <span class="req">*</span></label>
           <input type="text" id="apporteurNom" placeholder="Dupont" required autocomplete="family-name">
         </div>
       </div>
       <div class="field">
-        <label for="apporteurTel">Téléphone <span class="req">*</span></label>
+        <label for="apporteurTel">Votre téléphone <span class="req">*</span></label>
         <input type="tel" id="apporteurTel" placeholder="06 12 34 56 78" required autocomplete="tel">
-      </div>
-      <div class="field">
-        <label for="commercial">Commercial assigné <span class="req">*</span></label>
-        <input type="text" id="commercial" placeholder="Prénom du commercial" required>
       </div>
 
       <div class="section-label">L'établissement</div>
-
       <div class="field">
         <label for="nomEtab">Nom de l'établissement <span class="req">*</span></label>
         <input type="text" id="nomEtab" placeholder="Le Café du Capitole" required>
@@ -176,6 +170,28 @@
           <input type="text" id="ville" placeholder="Toulouse" required>
         </div>
       </div>
+
+      <div class="section-label">Contact de l'établissement</div>
+      <div class="row-2">
+        <div class="field">
+          <label for="contactPrenom">Prénom du contact <span class="req">*</span></label>
+          <input type="text" id="contactPrenom" placeholder="Marie" required>
+        </div>
+        <div class="field">
+          <label for="contactNom">Nom du contact <span class="req">*</span></label>
+          <input type="text" id="contactNom" placeholder="Martin" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="contactEmail">Email du contact <span class="req">*</span></label>
+        <input type="email" id="contactEmail" placeholder="marie.martin@cafe.fr" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="contactTel">Téléphone du contact <span class="req">*</span></label>
+        <input type="tel" id="contactTel" placeholder="05 61 00 00 00" required>
+      </div>
+
+      <div class="section-label">Informations complémentaires</div>
       <div class="field">
         <label for="note">Commentaire (facultatif)</label>
         <textarea id="note" placeholder="Connaissez-vous le gérant ? Avez-vous déjà évoqué SpinReviews ?"></textarea>
@@ -247,47 +263,96 @@ document.getElementById('leadForm').addEventListener('submit', async function(e)
     apporteurPrenom: document.getElementById('apporteurPrenom').value.trim(),
     apporteurNom:    document.getElementById('apporteurNom').value.trim(),
     apporteurTel:    document.getElementById('apporteurTel').value.trim(),
-    commercial:      document.getElementById('commercial').value.trim(),
     nomEtab:         document.getElementById('nomEtab').value.trim(),
     typeEtab:        document.getElementById('typeEtab').value,
     adresse:         document.getElementById('adresse').value.trim(),
     codePostal:      document.getElementById('codePostal').value.trim(),
     ville:           document.getElementById('ville').value.trim(),
+    contactPrenom:   document.getElementById('contactPrenom').value.trim(),
+    contactNom:      document.getElementById('contactNom').value.trim(),
+    contactEmail:    document.getElementById('contactEmail').value.trim(),
+    contactTel:      document.getElementById('contactTel').value.trim(),
     note:            document.getElementById('note').value.trim()
   };
-  const labels = {apporteurPrenom:'Prénom',apporteurNom:'Nom',apporteurTel:'Téléphone',commercial:'Commercial',nomEtab:"Nom de l'établissement",typeEtab:"Type",adresse:'Adresse',codePostal:'Code postal',ville:'Ville'};
-  const missing = ['apporteurPrenom','apporteurNom','apporteurTel','commercial','nomEtab','typeEtab','adresse','codePostal','ville'].filter(k=>!v[k]);
-  if (missing.length) { showErr('Merci de renseigner : '+missing.map(k=>labels[k]).join(', ')+'.'); return; }
 
-  const btn=document.getElementById('submitBtn'), sp=document.getElementById('spinner'), bt=document.getElementById('btnText');
-  btn.disabled=true; sp.style.display='block'; bt.textContent='Envoi en cours…';
+  const required = ['apporteurPrenom','apporteurNom','apporteurTel','nomEtab','typeEtab','adresse','codePostal','ville','contactPrenom','contactNom','contactEmail','contactTel'];
+  const labels = {apporteurPrenom:'Votre prénom',apporteurNom:'Votre nom',apporteurTel:'Votre téléphone',nomEtab:"Nom de l'établissement",typeEtab:"Type",adresse:'Adresse',codePostal:'Code postal',ville:'Ville',contactPrenom:'Prénom contact',contactNom:'Nom contact',contactEmail:'Email contact',contactTel:'Téléphone contact'};
+  const missing = required.filter(k => !v[k]);
+  if (missing.length) { showErr('Merci de renseigner : ' + missing.map(k => labels[k]).join(', ') + '.'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  const sp  = document.getElementById('spinner');
+  const bt  = document.getElementById('btnText');
+  btn.disabled = true; sp.style.display = 'block'; bt.textContent = 'Envoi en cours…';
   document.getElementById('statusErr').classList.remove('show');
 
   try {
-    const d = await gql(`mutation($data:CompanyCreateInput!){createCompany(data:$data){id name}}`,{
-      data:{name:v.nomEtab,address:{addressStreet1:v.adresse,addressCity:v.ville,addressPostcode:v.codePostal},typeDEtablissement:v.typeEtab,statutSpin:"LEADS",origineProspect:"APPORTEUR"}
-    });
-    const cid = d.createCompany.id;
-    const body = ['**Apporté par :** '+v.apporteurPrenom+' '+v.apporteurNom,'**Tél. apporteur :** '+v.apporteurTel,'**Commercial :** '+v.commercial,...(v.note?['\n**Commentaire :** '+v.note]:[])].join('\n');
-    try { await gql(`mutation($data:NoteCreateInput!){createNote(data:$data){id}}`,{data:{title:'Lead — '+v.apporteurPrenom+' '+v.apporteurNom,body,noteTargets:{createMany:{data:[{targetCompanyId:cid}]}}}}); } catch(_){}
-    btn.disabled=false; sp.style.display='none'; bt.textContent='Enregistrer et choisir un créneau →';
-    document.getElementById('s2etab').textContent=v.nomEtab;
-    document.getElementById('step1').style.display='none';
-    document.getElementById('step2').style.display='block';
+    // 1. Créer la Company
+    const nomApporteur = v.apporteurPrenom + ' ' + v.apporteurNom;
+    const companyData = await gql(
+      `mutation($data:CompanyCreateInput!){createCompany(data:$data){id name}}`,
+      { data: {
+          name: v.nomEtab,
+          address: { addressStreet1: v.adresse, addressCity: v.ville, addressPostcode: v.codePostal },
+          typeDEtablissement: v.typeEtab,
+          statutSpin: "LEADS",
+          origineProspect: "APPORTEUR",
+          nomApporteur: nomApporteur
+      }}
+    );
+    const cid = companyData.createCompany.id;
+
+    // 2. Créer le Contact lié à la Company
+    try {
+      await gql(
+        `mutation($data:PersonCreateInput!){createPerson(data:$data){id}}`,
+        { data: {
+            name: { firstName: v.contactPrenom, lastName: v.contactNom },
+            emails: { primaryEmail: v.contactEmail },
+            phones: { primaryPhoneNumber: v.contactTel, primaryPhoneCountryCode: "+33" },
+            company: { connect: { id: cid } }
+        }}
+      );
+    } catch(e) { console.warn('Contact non créé:', e.message); }
+
+    // 3. Créer la Note avec infos apporteur
+    const noteBody = [
+      '**Apporté par :** ' + nomApporteur,
+      '**Tél. apporteur :** ' + v.apporteurTel,
+      ...(v.note ? ['\n**Commentaire :** ' + v.note] : [])
+    ].join('\n');
+    try {
+      await gql(
+        `mutation($data:NoteCreateInput!){createNote(data:$data){id}}`,
+        { data: { title: 'Lead — ' + nomApporteur, body: noteBody, noteTargets: { createMany: { data: [{ targetCompanyId: cid }] } } } }
+      );
+    } catch(e) {}
+
+    btn.disabled = false; sp.style.display = 'none'; bt.textContent = 'Enregistrer et choisir un créneau →';
+    document.getElementById('s2etab').textContent = v.nomEtab;
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+
   } catch(err) {
-    btn.disabled=false; sp.style.display='none'; bt.textContent='Enregistrer et choisir un créneau →';
-    showErr(err instanceof TypeError ? '<strong>Erreur réseau (CORS)</strong> — ajoute <code>CORS_ALLOWED_ORIGINS=*</code> dans Railway.' : '<strong>Erreur :</strong> '+err.message);
+    btn.disabled = false; sp.style.display = 'none'; bt.textContent = 'Enregistrer et choisir un créneau →';
+    showErr(err instanceof TypeError
+      ? '<strong>Erreur réseau (CORS)</strong> — ajoute <code>CORS_ALLOWED_ORIGINS=*</code> dans Railway.'
+      : '<strong>Erreur :</strong> ' + err.message);
   }
 });
 
-document.getElementById('againBtn').addEventListener('click',function(){
-  document.getElementById('step2').style.display='none';
-  document.getElementById('step1').style.display='block';
+document.getElementById('againBtn').addEventListener('click', function() {
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('step1').style.display = 'block';
   document.getElementById('leadForm').reset();
 });
 
-function showErr(msg){const el=document.getElementById('statusErr');document.getElementById('errMsg').innerHTML=msg;el.classList.add('show');el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function showErr(msg) {
+  const el = document.getElementById('statusErr');
+  document.getElementById('errMsg').innerHTML = msg;
+  el.classList.add('show');
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 </script>
 </body>
 </html>
-
