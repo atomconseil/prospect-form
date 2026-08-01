@@ -359,6 +359,33 @@
   .com-table td:not(:first-child) { text-align: right; color: var(--text-2); }
   .com-table tr:last-child td { border-bottom: none; }
 
+  /* ── Commission table ── */
+  .commission-table { width: 100%; border-collapse: collapse; }
+  .commission-table th {
+    font-size: 10px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--text-3);
+    padding: 0 0 8px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .commission-table th:not(:first-child) { text-align: right; }
+  .commission-table td {
+    padding: 8px 0; font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .commission-table td:not(:first-child) { text-align: right; color: var(--text-2); }
+  .commission-table tr:last-child td { border-bottom: none; }
+  .commission-table .total-row td { font-weight: 700; color: var(--text); padding-top: 12px; }
+  .commission-table .total-row td:not(:first-child) { color: var(--accent); }
+
+  .commission-badge {
+    display: inline-block;
+    font-size: 10px; font-weight: 600; padding: 2px 7px;
+    border-radius: 4px; letter-spacing: .04em;
+  }
+  .badge-due { background: var(--warning-dim); color: var(--warning); border: 1px solid var(--warning); }
+  .badge-paid { background: var(--positive-dim); color: var(--positive); border: 1px solid var(--positive); }
+
   /* ── Loading state ── */
   .loading-overlay {
     position: fixed; inset: 0;
@@ -479,6 +506,41 @@
     <div class="pipeline-bars" id="sourcesBars"></div>
   </div>
 
+  <!-- Commissions Apporteurs -->
+  <div class="section-title">Commissions Apporteurs d'Affaire</div>
+  <div class="two-col" style="margin-bottom:12px">
+    <div class="panel">
+      <div class="panel-title">Suivi par apporteur <span style="color:var(--text-3);font-weight:400" id="commPeriodLabel"></span></div>
+      <div style="overflow-x:auto">
+        <table class="commission-table">
+          <thead><tr>
+            <th>Apporteur</th>
+            <th>Clients signés</th>
+            <th>Commission due</th>
+          </tr></thead>
+          <tbody id="commTable"><tr><td colspan="3" class="empty">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="kpi-grid" style="align-content:start;grid-template-columns:1fr 1fr">
+      <div class="kpi-card warning">
+        <div class="kpi-label">Commission Totale Due</div>
+        <div class="kpi-value" id="kpi-comm-total">—</div>
+        <div class="kpi-sub" id="kpi-comm-sub">70€ × clients signés via apporteur</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Apporteurs actifs</div>
+        <div class="kpi-value" id="kpi-comm-apporteurs">—</div>
+        <div class="kpi-sub">ayant apporté au moins 1 client signé</div>
+      </div>
+      <div class="kpi-card" style="grid-column:1/-1">
+        <div class="kpi-label">Commission / apporteur (moy.)</div>
+        <div class="kpi-value" id="kpi-comm-avg">—</div>
+        <div class="kpi-sub">sur la période sélectionnée</div>
+      </div>
+    </div>
+  </div>
+
   <!-- RDV + Commerciaux -->
   <div class="section-title">Agenda & Équipe</div>
   <div class="two-col">
@@ -518,15 +580,19 @@ function getMRR(c) { return (FORMULE[c.formule] || { mrr: 0 }).mrr; }
 function getARR(c) { return (FORMULE[c.formule] || { arr: 0 }).arr; }
 function getSetup(c) { return (FORMULE[c.formule] || { setup: 0 }).setup; }
 
+const COMMISSION_PAR_RDV = 70;
+
 const STATUT_LABELS = {
   LEADS: "Leads", CONTACTE: "Contacté", RDV_FIXE: "RDV Fixé",
-  FOLLOW_UP: "Follow-up", SIGNE: "Signé", ACCORD_VERBAL: "Accord verbal", PERDU: "Perdu"
+  FOLLOW_UP: "Follow-up", SIGNE: "Signé", ACCORD_VERBAL: "Accord verbal",
+  PERDU: "Perdu", NO_SHOW: "No Show"
 };
 const STATUT_COLORS = {
   LEADS: "#3B82F6", CONTACTE: "#8B5CF6", RDV_FIXE: "#00C9A7",
-  FOLLOW_UP: "#F59E0B", SIGNE: "#10B981", ACCORD_VERBAL: "#F97316", PERDU: "#EF4444"
+  FOLLOW_UP: "#F59E0B", SIGNE: "#10B981", ACCORD_VERBAL: "#F97316",
+  PERDU: "#EF4444", NO_SHOW: "#6B7280"
 };
-const STATUT_ORDER = ["LEADS","CONTACTE","RDV_FIXE","FOLLOW_UP","ACCORD_VERBAL","SIGNE","PERDU"];
+const STATUT_ORDER = ["LEADS","CONTACTE","RDV_FIXE","FOLLOW_UP","ACCORD_VERBAL","SIGNE","NO_SHOW","PERDU"];
 const MONTHS = ["jan","fév","mar","avr","mai","jun","jul","aoû","sep","oct","nov","déc"];
 
 let allCompanies = [];
@@ -565,7 +631,7 @@ async function loadData() {
     companies(first: 200) {
       edges {
         node {
-          id name statutSpin formule origineProspect createdAt dateProchaineAction
+          id name statutSpin formule origineProspect nomApporteur createdAt dateProchaineAction
           accountOwner { name { firstName lastName } }
         }
       }
@@ -601,8 +667,59 @@ function render() {
   renderPipeline();
   renderFunnel();
   renderSources();
+  renderCommissions();
   renderRDV();
   renderCommercials();
+}
+
+function renderCommissions() {
+  // Clients signés via un apporteur (nomApporteur renseigné) sur la période
+  const signesApporteur = allCompanies.filter(c =>
+    c.statutSpin === "SIGNE" && c.nomApporteur && c.nomApporteur.trim() !== "" &&
+    inPeriod(c.createdAt, currentPeriod)
+  );
+
+  document.getElementById("commPeriodLabel").textContent =
+    currentPeriod === 0 ? `— tout` : `— ${currentPeriod} j`;
+
+  // Grouper par nom apporteur
+  const map = {};
+  signesApporteur.forEach(c => {
+    const nom = c.nomApporteur.trim();
+    if (!map[nom]) map[nom] = 0;
+    map[nom]++;
+  });
+
+  const rows = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  const totalComm = signesApporteur.length * COMMISSION_PAR_RDV;
+  const nbApporteurs = rows.length;
+  const avgComm = nbApporteurs > 0 ? totalComm / nbApporteurs : 0;
+
+  document.getElementById("kpi-comm-total").textContent = fmt(totalComm, 0);
+  document.getElementById("kpi-comm-sub").textContent =
+    `${COMMISSION_PAR_RDV}€ × ${signesApporteur.length} client${signesApporteur.length !== 1 ? "s" : ""} signé${signesApporteur.length !== 1 ? "s" : ""} via apporteur`;
+  document.getElementById("kpi-comm-apporteurs").textContent = nbApporteurs;
+  document.getElementById("kpi-comm-avg").textContent = nbApporteurs > 0 ? fmt(avgComm, 0) : "—";
+
+  const tbody = document.getElementById("commTable");
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:var(--text-3);font-size:12px;padding:12px 0;text-align:center">Aucune commission sur la période</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(([nom, count]) => `
+    <tr>
+      <td style="font-weight:500">${nom}</td>
+      <td>${count}</td>
+      <td style="color:var(--warning);font-weight:600">${fmt(count * COMMISSION_PAR_RDV, 0)}</td>
+    </tr>
+  `).join("") + `
+    <tr class="total-row">
+      <td>Total</td>
+      <td>${signesApporteur.length}</td>
+      <td>${fmt(totalComm, 0)}</td>
+    </tr>
+  `;
 }
 
 function renderBusiness() {
