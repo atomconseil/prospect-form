@@ -289,6 +289,8 @@ document.getElementById('leadForm').addEventListener('submit', async function(e)
   try {
     // 1. Créer la Company
     const nomApporteur = v.apporteurPrenom + ' ' + v.apporteurNom;
+    const VILLE_MAP = { toulouse: 'TOULOUSE', paris: 'PARIS', bordeaux: 'BORDEAUX', biarritz: 'BIARRITZ', marseille: 'MARSEILLE', lyon: 'LYON', nantes: 'NANTES', lille: 'LILLE' };
+    const villeEnum = VILLE_MAP[v.ville.toLowerCase().trim()] || null;
     const companyData = await gql(
       `mutation($data:CompanyCreateInput!){createCompany(data:$data){id name}}`,
       { data: {
@@ -297,7 +299,8 @@ document.getElementById('leadForm').addEventListener('submit', async function(e)
           typeDEtablissement: v.typeEtab,
           statutSpin: "LEADS",
           origineProspect: "APPORTEUR",
-          nomApporteur: nomApporteur
+          nomApporteur: nomApporteur,
+          ...(villeEnum ? { ville: villeEnum } : {})
       }}
     );
     const cid = companyData.createCompany.id;
