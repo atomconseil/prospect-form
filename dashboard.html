@@ -472,6 +472,13 @@
     </div>
   </div>
 
+  <!-- Sources -->
+  <div class="section-title">Origine des Prospects</div>
+  <div class="panel" style="margin-bottom:12px">
+    <div class="panel-title">Répartition par source <span style="color:var(--text-3);font-weight:400" id="sourcesPeriodLabel"></span></div>
+    <div class="pipeline-bars" id="sourcesBars"></div>
+  </div>
+
   <!-- RDV + Commerciaux -->
   <div class="section-title">Agenda & Équipe</div>
   <div class="two-col">
@@ -558,7 +565,7 @@ async function loadData() {
     companies(first: 200) {
       edges {
         node {
-          id name statutSpin formule createdAt dateProchaineAction
+          id name statutSpin formule origineProspect createdAt dateProchaineAction
           accountOwner { name { firstName lastName } }
         }
       }
@@ -593,6 +600,7 @@ function render() {
   renderLeads();
   renderPipeline();
   renderFunnel();
+  renderSources();
   renderRDV();
   renderCommercials();
 }
@@ -808,6 +816,47 @@ function renderCommercials() {
       <td>${fmt(d.arr, 0)}</td>
     </tr>
   `).join("");
+}
+
+function renderSources() {
+  const SOURCES = [
+    { key: "APPORTEUR",      label: "Apporteur d'affaire", color: "#3B82F6" },
+    { key: "TERRAIN",        label: "Visite terrain",       color: "#10B981" },
+    { key: "RECOMMANDATION", label: "Recommandation client",color: "#8B5CF6" },
+    { key: "RESEAUX_SOCIAUX",label: "Réseaux sociaux",      color: "#F59E0B" },
+    { key: "META_ADS",       label: "Meta Ads",             color: "#EF4444" },
+    { key: null,             label: "Non renseignée",       color: "#4A6080" },
+  ];
+
+  const filtered = allCompanies.filter(c => inPeriod(c.createdAt, currentPeriod));
+  const total = filtered.length || 1;
+
+  document.getElementById("sourcesPeriodLabel").textContent =
+    currentPeriod === 0 ? `— ${filtered.length} au total` : `— ${filtered.length} sur ${currentPeriod} j`;
+
+  const counts = {};
+  filtered.forEach(c => {
+    const k = c.origineProspect || null;
+    counts[k] = (counts[k] || 0) + 1;
+  });
+
+  const max = Math.max(...Object.values(counts), 1);
+  const el = document.getElementById("sourcesBars");
+  el.innerHTML = SOURCES
+    .filter(s => counts[s.key] > 0)
+    .sort((a, b) => (counts[b.key] || 0) - (counts[a.key] || 0))
+    .map(s => {
+      const n = counts[s.key] || 0;
+      const pct = ((n / total) * 100).toFixed(0);
+      return `
+        <div class="pipe-row" style="grid-template-columns:150px 1fr 60px">
+          <div class="pipe-label">${s.label}</div>
+          <div class="pipe-track">
+            <div class="pipe-fill" style="width:${(n/max*100).toFixed(1)}%;background:${s.color}"></div>
+          </div>
+          <div class="pipe-count">${n} <span style="color:var(--text-3);font-weight:400">(${pct}%)</span></div>
+        </div>`;
+    }).join("") || '<div class="empty">Aucune donnée sur la période</div>';
 }
 
 // Init
