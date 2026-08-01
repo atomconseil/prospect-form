@@ -287,10 +287,22 @@ document.getElementById('leadForm').addEventListener('submit', async function(e)
   document.getElementById('statusErr').classList.remove('show');
 
   try {
-    // 1. Créer la Company
     const nomApporteur = v.apporteurPrenom + ' ' + v.apporteurNom;
     const VILLE_MAP = { toulouse: 'TOULOUSE', paris: 'PARIS', bordeaux: 'BORDEAUX', biarritz: 'BIARRITZ', marseille: 'MARSEILLE', lyon: 'LYON', nantes: 'NANTES', lille: 'LILLE' };
     const villeEnum = VILLE_MAP[v.ville.toLowerCase().trim()] || null;
+
+    // 0. Chercher la fiche Apporteur existante par prénom + nom
+    let apporteurId = null;
+    try {
+      const apporteurRes = await gql(
+        `query($fn:StringFilter,$ln:StringFilter){apporteurs(filter:{name:{firstName:$fn,lastName:$ln}}){edges{node{id}}}}`,
+        { fn: { eq: v.apporteurPrenom }, ln: { eq: v.apporteurNom } }
+      );
+      const found = apporteurRes.apporteurs.edges;
+      if (found.length > 0) apporteurId = found[0].node.id;
+    } catch(e) { console.warn('Recherche apporteur échouée:', e.message); }
+
+    // 1. Créer la Company (avec lien apporteur si trouvé)
     const companyData = await gql(
       `mutation($data:CompanyCreateInput!){createCompany(data:$data){id name}}`,
       { data: {
@@ -300,7 +312,8 @@ document.getElementById('leadForm').addEventListener('submit', async function(e)
           statutSpin: "LEADS",
           origineProspect: "APPORTEUR",
           nomApporteur: nomApporteur,
-          ...(villeEnum ? { ville: villeEnum } : {})
+          ...(villeEnum ? { ville: villeEnum } : {}),
+          ...(apporteurId ? { apporteurId } : {})
       }}
     );
     const cid = companyData.createCompany.id;
