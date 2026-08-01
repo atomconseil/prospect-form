@@ -564,6 +564,25 @@
     </div>
   </div>
 
+  <!-- Règlements -->
+  <div class="section-title">Règlements & Encaissements</div>
+  <div class="kpi-grid" style="margin-bottom:12px" id="reglKpis">
+    <div class="kpi-card positive"><div class="kpi-label">Encaissé ce mois</div><div class="kpi-value" id="regl-mois">—</div><div class="kpi-sub">règlements payés</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">À encaisser (30 j)</div><div class="kpi-value" id="regl-avenir">—</div><div class="kpi-sub">échéances à venir</div></div>
+    <div class="kpi-card danger"><div class="kpi-label">En retard</div><div class="kpi-value" id="regl-retard">—</div><div class="kpi-sub">échéances dépassées</div></div>
+    <div class="kpi-card warning"><div class="kpi-label">Commissions dues</div><div class="kpi-value" id="regl-comm">—</div><div class="kpi-sub">apporteurs non payés</div></div>
+  </div>
+  <div class="two-col" style="margin-bottom:12px">
+    <div class="panel">
+      <div class="panel-title">En retard <span style="color:var(--danger)" id="retard-count"></span></div>
+      <div id="retardList"><div class="empty">Aucun règlement en retard</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Prochaines échéances <span style="color:var(--text-3)" id="avenir-count"></span></div>
+      <div id="avenirList"><div class="empty">Aucune échéance à venir</div></div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -623,6 +642,8 @@ function setPeriod(btn) {
   render();
 }
 
+let allReglements = [];
+
 async function loadData() {
   const btn = document.getElementById("btnRefresh");
   btn.classList.add("spinning");
@@ -633,6 +654,15 @@ async function loadData() {
         node {
           id name statutSpin formule origineProspect nomApporteur createdAt dateProchaineAction
           accountOwner { name { firstName lastName } }
+        }
+      }
+    }
+    reglements(first: 500) {
+      edges {
+        node {
+          id montant statut typeReglement dateEcheance dateReglement reference
+          contrat { name { firstName lastName } entreprise { name } apporteur { name { firstName lastName } } }
+          apporteur { name { firstName lastName } }
         }
       }
     }
@@ -647,6 +677,7 @@ async function loadData() {
     const json = await res.json();
     if (json.errors) throw new Error(json.errors[0].message);
     allCompanies = json.data.companies.edges.map(e => e.node);
+    allReglements = (json.data.reglements?.edges || []).map(e => e.node);
     document.getElementById("errorBanner").style.display = "none";
     document.getElementById("lastUpdated").textContent = "Mis à jour " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
     render();
@@ -670,6 +701,7 @@ function render() {
   renderCommissions();
   renderRDV();
   renderCommercials();
+  renderReglements();
 }
 
 function renderCommissions() {
@@ -974,6 +1006,72 @@ function renderSources() {
           <div class="pipe-count">${n} <span style="color:var(--text-3);font-weight:400">(${pct}%)</span></div>
         </div>`;
     }).join("") || '<div class="empty">Aucune donnée sur la période</div>';
+}
+
+function renderReglements() {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const in30 = new Date(now.getTime() + 30 * 86400000);
+
+  const getLabel = r => {
+    const co = r.contrat;
+    if (co?.entreprise?.name) return co.entreprise.name;
+    const ap = r.apporteur || co?.apporteur;
+    if (ap) return (ap.name?.firstName + " " + ap.name?.lastName).trim();
+    return "—";
+  };
+
+  const TYPE_LABELS = {
+    ABONNEMENT: "Abonnement", SETUP: "Setup fee",
+    COMMISSION: "Commission", SALAIRE: "Salaire", AUTRE: "Autre"
+  };
+
+  // KPIs
+  const payesMois = allReglements.filter(r =>
+    r.statut === "PAYE" && r.dateReglement && new Date(r.dateReglement) >= startOfMonth
+  );
+  const enAttente30 = allReglements.filter(r =>
+    r.statut === "EN_ATTENTE" && r.dateEcheance && new Date(r.dateEcheance) <= in30 && new Date(r.dateEcheance) >= now
+  );
+  const enRetard = allReglements.filter(r =>
+    (r.statut === "EN_ATTENTE" || r.statut === "EN_RETARD") && r.dateEcheance && new Date(r.dateEcheance) < now
+  );
+  const commDues = allReglements.filter(r =>
+    r.statut === "EN_ATTENTE" && r.typeReglement === "COMMISSION"
+  );
+
+  document.getElementById("regl-mois").textContent = fmt(payesMois.reduce((s, r) => s + (r.montant || 0), 0), 0);
+  document.getElementById("regl-avenir").textContent = fmt(enAttente30.reduce((s, r) => s + (r.montant || 0), 0), 0);
+  document.getElementById("regl-retard").textContent = fmt(enRetard.reduce((s, r) => s + (r.montant || 0), 0), 0);
+  document.getElementById("regl-comm").textContent = fmt(commDues.reduce((s, r) => s + (r.montant || 0), 0), 0);
+
+  // Ligne règlement
+  const reglRow = (r, color) => {
+    const d = r.dateEcheance ? new Date(r.dateEcheance) : null;
+    const dateStr = d ? d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : "—";
+    const type = TYPE_LABELS[r.typeReglement] || r.typeReglement || "—";
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface-2);border-radius:6px;border:1px solid var(--border);margin-bottom:6px;font-size:13px">
+      <div>
+        <div style="font-weight:500">${getLabel(r)}</div>
+        <div style="font-size:11px;color:var(--text-3)">${type} · échéance ${dateStr}</div>
+      </div>
+      <div style="font-weight:700;color:${color}">${fmt(r.montant || 0, 0)}</div>
+    </div>`;
+  };
+
+  // Retard
+  const retardSorted = [...enRetard].sort((a, b) => new Date(a.dateEcheance) - new Date(b.dateEcheance));
+  document.getElementById("retard-count").textContent = retardSorted.length ? `(${retardSorted.length})` : "";
+  document.getElementById("retardList").innerHTML = retardSorted.length
+    ? retardSorted.map(r => reglRow(r, "var(--danger)")).join("")
+    : '<div class="empty">Aucun règlement en retard ✓</div>';
+
+  // À venir
+  const avenirSorted = [...enAttente30].sort((a, b) => new Date(a.dateEcheance) - new Date(b.dateEcheance));
+  document.getElementById("avenir-count").textContent = avenirSorted.length ? `(${avenirSorted.length})` : "";
+  document.getElementById("avenirList").innerHTML = avenirSorted.length
+    ? avenirSorted.map(r => reglRow(r, "var(--accent)")).join("")
+    : '<div class="empty">Aucune échéance dans les 30 jours</div>';
 }
 
 // Init
